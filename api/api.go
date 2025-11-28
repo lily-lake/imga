@@ -1,7 +1,8 @@
 package api
 
 import (
-	"encoding/json"
+	// "encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -20,4 +21,11 @@ type ShortenUrlResponse struct {
 type Error struct {
 	Code int
 	Message string
+}
+
+
+
+
+func CreateShortUrlHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "create short url route\n")
 }
