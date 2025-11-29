@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -14,17 +13,12 @@ import (
 	"imga/api"
 )
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "hello world\n")
-}
-
 func main() {
 	urlMap := make(map[string]string)
 	var urlMapMu sync.RWMutex
 
 	http.HandleFunc("/shorten", api.CreateShortURLHandler(urlMap, &urlMapMu))
 	http.HandleFunc("/{shortCode}", api.RedirectToOriginalURLHandler(urlMap, &urlMapMu))
-	http.HandleFunc("/", handler)
 
 	// Create HTTP server
 	server := &http.Server{
