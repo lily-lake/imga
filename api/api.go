@@ -126,6 +126,10 @@ func CreateShortURLHandler(urlMap map[string]string, mu *sync.RWMutex) http.Hand
 
 		log.Printf("shorten request for URL: %s", params.URL)
 
+		// Set response headers and status code
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+
 		// Encode response as JSON
 		json.NewEncoder(w).Encode(response)
 	}
@@ -133,6 +137,13 @@ func CreateShortURLHandler(urlMap map[string]string, mu *sync.RWMutex) http.Hand
 
 func RedirectToOriginalURLHandler(urlMap map[string]string, mu *sync.RWMutex) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Only allow GET requests
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			log.Println("invalid request type to /{shortCode}")
+			return
+		}
+
 		// Get short code from request
 		shortCode := strings.TrimPrefix(r.URL.Path, "/")
 

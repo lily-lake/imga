@@ -62,6 +62,22 @@ func TestRedirectToOriginalURLHandler(t *testing.T) {
 			t.Errorf("expected Location header to be https://www.example.com, got %s", response.Header().Get("Location"))
 		}
 	})
+	t.Run("Returns error if short code not found", func(t *testing.T) {
+		request := httptest.NewRequest("GET", "/111112", nil)
+		response := httptest.NewRecorder()
+		RedirectToOriginalURLHandler(mockURLMap, &mockURLMapMu)(response, request)
+		if response.Code != 404 {
+			t.Errorf("expected 404 status code, got %d", response.Code)
+		}
+	})
+	t.Run("Returns error if method is not GET", func(t *testing.T) {
+		request := httptest.NewRequest("POST", "/111111", nil)
+		response := httptest.NewRecorder()
+		RedirectToOriginalURLHandler(mockURLMap, &mockURLMapMu)(response, request)
+		if response.Code != 405 {
+			t.Errorf("expected 405 status code, got %d", response.Code)
+		}
+	})
 }
 
 func TestCreateShortURLHandler(t *testing.T) {
@@ -69,8 +85,8 @@ func TestCreateShortURLHandler(t *testing.T) {
 		request := httptest.NewRequest("POST", "/shorten", bytes.NewBufferString(`{"url": "https://www.example.com"}`))
 		response := httptest.NewRecorder()
 		CreateShortURLHandler(mockURLMap, &mockURLMapMu)(response, request)
-		if response.Code != 200 {
-			t.Errorf("expected 200 status code, got %d", response.Code)
+		if response.Code != 201 {
+			t.Errorf("expected 201 status code, got %d", response.Code)
 		}
 		var responseBody ShortenURLResponse
 		if err := json.Unmarshal(response.Body.Bytes(), &responseBody); err != nil {
@@ -86,8 +102,8 @@ func TestCreateShortURLHandler(t *testing.T) {
 		request := httptest.NewRequest("POST", "/shorten", bytes.NewBufferString(`{"url": "https://www.example.com", "shortcode": "abcdefg"}`))
 		response := httptest.NewRecorder()
 		CreateShortURLHandler(mockURLMap, &mockURLMapMu)(response, request)
-		if response.Code != 200 {
-			t.Errorf("expected 200 status code, got %d", response.Code)
+		if response.Code != 201 {
+			t.Errorf("expected 201 status code, got %d", response.Code)
 		}
 		var responseBody ShortenURLResponse
 		if err := json.Unmarshal(response.Body.Bytes(), &responseBody); err != nil {
@@ -103,6 +119,38 @@ func TestCreateShortURLHandler(t *testing.T) {
 		CreateShortURLHandler(mockURLMap, &mockURLMapMu)(response, request)
 		if response.Code != 409 {
 			t.Errorf("expected 409 status code, got %d", response.Code)
+		}
+	})
+	t.Run("Returns error if URL is invalid", func(t *testing.T) {
+		request := httptest.NewRequest("POST", "/shorten", bytes.NewBufferString(`{"url": "invalid-url"}`))
+		response := httptest.NewRecorder()
+		CreateShortURLHandler(mockURLMap, &mockURLMapMu)(response, request)
+		if response.Code != 400 {
+			t.Errorf("expected 400 status code, got %d", response.Code)
+		}
+	})
+	t.Run("Returns error if request body is empty", func(t *testing.T) {
+		request := httptest.NewRequest("POST", "/shorten", nil)
+		response := httptest.NewRecorder()
+		CreateShortURLHandler(mockURLMap, &mockURLMapMu)(response, request)
+		if response.Code != 400 {
+			t.Errorf("expected 400 status code, got %d", response.Code)
+		}
+	})
+	t.Run("Returns error if request body is invalid JSON", func(t *testing.T) {
+		request := httptest.NewRequest("POST", "/shorten", bytes.NewBufferString(`{"url": "https://www.example.com", shortcode: "abcdefg"}`))
+		response := httptest.NewRecorder()
+		CreateShortURLHandler(mockURLMap, &mockURLMapMu)(response, request)
+		if response.Code != 400 {
+			t.Errorf("expected 400 status code, got %d", response.Code)
+		}
+	})
+	t.Run("Returns error if method is not POST", func(t *testing.T) {
+		request := httptest.NewRequest("GET", "/shorten", nil)
+		response := httptest.NewRecorder()
+		CreateShortURLHandler(mockURLMap, &mockURLMapMu)(response, request)
+		if response.Code != 405 {
+			t.Errorf("expected 405 status code, got %d", response.Code)
 		}
 	})
 }

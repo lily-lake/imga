@@ -75,7 +75,7 @@ Should return the following:
 ```json
 {
   "ShortCode": "abcdefg",
-  "ShortURL": "http://localhost:8080/CTv8Ax",
+  "ShortURL": "http://localhost:8080/abcdefg",
   "OriginalURL": "http://example.com"
 }
 ```
@@ -94,7 +94,13 @@ I have assumed:
 - There will never be enough shortcodes to exhaust the possible 6 character combinations
 - If a custom short code is taken, it should throw an error rather than generate a new short code
 
+### Additional
 
 If there was more time:
 - I would make a more robust logging setup that can be routed elsewhere (or in real life would use a logging package and open telemetry)
 - Add better testing for more realistic workloads (concurrent requests, higher volume)
+
+Time spent:
+- 3 pomodoros on Friday for core functionality
+- 2 pomodoros on Saturday for tests and additional features
+- Overall I probably spent over 3 hours completing this assignment
