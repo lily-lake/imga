@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // Shorten URL params
@@ -105,4 +106,21 @@ func CreateShortURLHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Encode response as JSON
 	json.NewEncoder(w).Encode(response)
+}
+
+func RedirectToOriginalURLHandler(w http.ResponseWriter, r *http.Request) {
+	// Get short code from request
+	shortCode := strings.TrimPrefix(r.URL.Path, "/")
+
+	// Get original URL from map
+	originalURL, exists := URLMap[shortCode]
+	if !exists {
+		http.Error(w, "Short code not found", http.StatusNotFound)
+		log.Printf("Short code not found: %s", shortCode)
+		return
+	}
+
+	// Redirect to original URL
+	log.Printf("Redirecting to original URL: %s", originalURL)
+	http.Redirect(w, r, originalURL, http.StatusTemporaryRedirect)
 }
