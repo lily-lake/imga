@@ -120,7 +120,9 @@ func RedirectToOriginalURLHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Redirect to original URL
 	log.Printf("Redirecting to original URL: %s", originalURL)
-	http.Redirect(w, r, originalURL, http.StatusTemporaryRedirect)
+
+	// Redirect to original URL
+	w.Header().Set("Location", originalURL)
+	w.WriteHeader(http.StatusFound)
 }
