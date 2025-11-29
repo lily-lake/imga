@@ -29,12 +29,6 @@ type Error struct {
 	Message string
 }
 
-// URL short code map
-var (
-	URLMap   = make(map[string]string)
-	URLMapMu sync.RWMutex // protects URLMap from concurrent access
-)
-
 // URL validator
 func isValidURL(rawURL string) bool {
 	_, err := url.ParseRequestURI(rawURL)
@@ -55,12 +49,12 @@ func generateShortCode() string {
 }
 
 // Generate code that is not already in the map
-func getUniqueShortCode() string {
+func getUniqueShortCode(urlMap map[string]string, mu *sync.RWMutex) string {
 	for {
 		code := generateShortCode()
-		URLMapMu.RLock()
-		_, exists := URLMap[code]
-		URLMapMu.RUnlock()
+		mu.RLock()
+		_, exists := urlMap[code]
+		mu.RUnlock()
 		if !exists {
 			return code
 		}
@@ -68,70 +62,74 @@ func getUniqueShortCode() string {
 	}
 }
 
-func CreateShortURLHandler(w http.ResponseWriter, r *http.Request) {
-	// Only allow POST requests
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		log.Println("invalid request type to /shorten")
-		return
-	}
-
-	// Read and decode JSON body into ShortenUrlParams
-	var params ShortenURLParams
-	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-		if err == io.EOF {
-			http.Error(w, "Empty request body", http.StatusBadRequest)
-		} else {
-			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+func CreateShortURLHandler(urlMap map[string]string, mu *sync.RWMutex) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Only allow POST requests
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			log.Println("invalid request type to /shorten")
+			return
 		}
-		log.Printf("error decoding /shorten request body: %v", err)
-		return
+
+		// Read and decode JSON body into ShortenUrlParams
+		var params ShortenURLParams
+		if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+			if err == io.EOF {
+				http.Error(w, "Empty request body", http.StatusBadRequest)
+			} else {
+				http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+			}
+			log.Printf("error decoding /shorten request body: %v", err)
+			return
+		}
+
+		// If URL is not valid, return error
+		isValid := isValidURL(params.URL)
+		if !isValid {
+			http.Error(w, "Invalid URL", http.StatusBadRequest)
+			log.Printf("Invalid URL: %v", params.URL)
+			return
+		}
+
+		// Generate unique short code
+		shortCode := getUniqueShortCode(urlMap, mu)
+		mu.Lock()
+		urlMap[shortCode] = params.URL
+		mu.Unlock()
+
+		// Create response
+		response := ShortenURLResponse{
+			ShortCode:   shortCode,
+			ShortURL:    fmt.Sprintf("http://localhost:8080/%s", shortCode),
+			OriginalURL: params.URL,
+		}
+
+		log.Printf("shorten request for URL: %s", params.URL)
+
+		// Encode response as JSON
+		json.NewEncoder(w).Encode(response)
 	}
-
-	// If URL is not valid, return error
-	isValid := isValidURL(params.URL)
-	if !isValid {
-		http.Error(w, "Invalid URL", http.StatusBadRequest)
-		log.Printf("Invalid URL: %v", params.URL)
-		return
-	}
-
-	// Generate unique short code
-	shortCode := getUniqueShortCode()
-	URLMapMu.Lock()
-	URLMap[shortCode] = params.URL
-	URLMapMu.Unlock()
-
-	// Create response
-	response := ShortenURLResponse{
-		ShortCode:   shortCode,
-		ShortURL:    fmt.Sprintf("http://localhost:8080/%s", shortCode),
-		OriginalURL: params.URL,
-	}
-
-	log.Printf("shorten request for URL: %s", params.URL)
-
-	// Encode response as JSON
-	json.NewEncoder(w).Encode(response)
 }
 
-func RedirectToOriginalURLHandler(w http.ResponseWriter, r *http.Request) {
-	// Get short code from request
-	shortCode := strings.TrimPrefix(r.URL.Path, "/")
+func RedirectToOriginalURLHandler(urlMap map[string]string, mu *sync.RWMutex) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Get short code from request
+		shortCode := strings.TrimPrefix(r.URL.Path, "/")
 
-	// Get original URL from map
-	URLMapMu.RLock()
-	originalURL, exists := URLMap[shortCode]
-	URLMapMu.RUnlock()
-	if !exists {
-		http.Error(w, "Short code not found", http.StatusNotFound)
-		log.Printf("Short code not found: %s", shortCode)
-		return
+		// Get original URL from map
+		mu.RLock()
+		originalURL, exists := urlMap[shortCode]
+		mu.RUnlock()
+		if !exists {
+			http.Error(w, "Short code not found", http.StatusNotFound)
+			log.Printf("Short code not found: %s", shortCode)
+			return
+		}
+
+		log.Printf("Redirecting to original URL: %s", originalURL)
+
+		// Redirect to original URL
+		w.Header().Set("Location", originalURL)
+		w.WriteHeader(http.StatusFound)
 	}
-
-	log.Printf("Redirecting to original URL: %s", originalURL)
-
-	// Redirect to original URL
-	w.Header().Set("Location", originalURL)
-	w.WriteHeader(http.StatusFound)
 }

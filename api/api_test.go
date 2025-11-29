@@ -1,7 +1,13 @@
 package api
 
 import (
+	"sync"
 	"testing"
+)
+
+var (
+	mockURLMap   = make(map[string]string)
+	mockURLMapMu sync.RWMutex
 )
 
 func TestGenerateShortCode(t *testing.T) {
@@ -17,8 +23,8 @@ func TestGenerateShortCode(t *testing.T) {
 func TestGetUniqueShortCode(t *testing.T) {
 	t.Run("Generates unique short code", func(t *testing.T) {
 		// I know this is a silly test, would spend more time in production code :)
-		code1 := getUniqueShortCode()
-		code2 := getUniqueShortCode()
+		code1 := getUniqueShortCode(mockURLMap, &mockURLMapMu)
+		code2 := getUniqueShortCode(mockURLMap, &mockURLMapMu)
 		if code1 == code2 {
 			t.Errorf("expected unique short codes, got %s and %s", code1, code2)
 		}
