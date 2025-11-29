@@ -14,19 +14,20 @@ import (
 
 // Shorten URL params
 type ShortenURLParams struct {
-	URL string
+	URL       string  `json:"URL"`
+	ShortCode *string `json:"ShortCode,omitempty"` // Optional custom short code
 }
 
 // Shorten URL response
 type ShortenURLResponse struct {
-	ShortCode   string
-	ShortURL    string
-	OriginalURL string
+	ShortCode   string `json:"ShortCode"`
+	ShortURL    string `json:"ShortURL"`
+	OriginalURL string `json:"OriginalURL"`
 }
 
 type Error struct {
-	Code    int
-	Message string
+	Code    int    `json:"Code"`
+	Message string `json:"Message"`
 }
 
 // URL validator
@@ -91,8 +92,27 @@ func CreateShortURLHandler(urlMap map[string]string, mu *sync.RWMutex) http.Hand
 			return
 		}
 
-		// Generate unique short code
-		shortCode := getUniqueShortCode(urlMap, mu)
+		var shortCode string
+
+		// Check if custom short code is provided
+		if params.ShortCode != nil && *params.ShortCode != "" {
+			customCode := *params.ShortCode
+			// Check if custom code already exists
+			mu.RLock()
+			_, exists := urlMap[customCode]
+			mu.RUnlock()
+			if exists {
+				http.Error(w, "Short code already exists", http.StatusConflict)
+				log.Printf("Custom short code already exists: %s", customCode)
+				return
+			}
+			shortCode = customCode
+		} else {
+			// Generate unique short code if no custom code provided
+			shortCode = getUniqueShortCode(urlMap, mu)
+		}
+
+		// Store the short code
 		mu.Lock()
 		urlMap[shortCode] = params.URL
 		mu.Unlock()

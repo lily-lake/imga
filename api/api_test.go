@@ -82,4 +82,27 @@ func TestCreateShortURLHandler(t *testing.T) {
 		// I believe different handler structure would be needed to test that the short code generated is the one in the response
 		// I don't think this would be a high value test
 	})
+	t.Run("Creates short URL with custom short code", func(t *testing.T) {
+		request := httptest.NewRequest("POST", "/shorten", bytes.NewBufferString(`{"url": "https://www.example.com", "shortcode": "abcdefg"}`))
+		response := httptest.NewRecorder()
+		CreateShortURLHandler(mockURLMap, &mockURLMapMu)(response, request)
+		if response.Code != 200 {
+			t.Errorf("expected 200 status code, got %d", response.Code)
+		}
+		var responseBody ShortenURLResponse
+		if err := json.Unmarshal(response.Body.Bytes(), &responseBody); err != nil {
+			t.Errorf("expected valid JSON response, got %s", response.Body.String())
+		}
+		if responseBody.OriginalURL != "https://www.example.com" {
+			t.Errorf("expected OriginalURL to be https://www.example.com, got %s", responseBody.OriginalURL)
+		}
+	})
+	t.Run("Returns error if custom short code already exists", func(t *testing.T) {
+		request := httptest.NewRequest("POST", "/shorten", bytes.NewBufferString(`{"url": "https://www.example.com", "shortcode": "abcdefg"}`))
+		response := httptest.NewRecorder()
+		CreateShortURLHandler(mockURLMap, &mockURLMapMu)(response, request)
+		if response.Code != 409 {
+			t.Errorf("expected 409 status code, got %d", response.Code)
+		}
+	})
 }
