@@ -9,3 +9,7 @@ docker build -t imga .
 To run:
 
 docker run -p 8080:8080 imga
+
+To test:
+
+go test ./...
