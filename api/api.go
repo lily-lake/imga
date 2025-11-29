@@ -6,18 +6,19 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 )
 
 // Shorten URL params
-type ShortenUrlParams struct {
-	Url string
+type ShortenURLParams struct {
+	URL string
 }
 
 // Shorten URL response
-type ShortenUrlResponse struct {
+type ShortenURLResponse struct {
 	ShortCode string
-	ShortUrl string
-	OriginalUrl string
+	ShortURL string
+	OriginalURL string
 }
 
 type Error struct {
@@ -25,10 +26,17 @@ type Error struct {
 	Message string
 }
 
+// URL validator
+func isValidURL(rawURL string) bool {
+	_, err := url.ParseRequestURI(rawURL)
+	if err != nil {
+		return false
+	}
+	return true
+}
 
 
-
-func CreateShortUrlHandler(w http.ResponseWriter, r *http.Request) {
+func CreateShortURLHandler(w http.ResponseWriter, r *http.Request) {
 	// Only allow POST requests
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -37,7 +45,7 @@ func CreateShortUrlHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Read and decode JSON body into ShortenUrlParams
-	var params ShortenUrlParams
+	var params ShortenURLParams
 	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
 		if err == io.EOF {
 			http.Error(w, "Empty request body", http.StatusBadRequest)
@@ -48,7 +56,15 @@ func CreateShortUrlHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("shorten request for URL: %s", params.Url)
+	// If URL is not valid, return error
+	isValid := isValidURL(params.URL)
+	if !isValid {
+		http.Error(w, "Invalid URL", http.StatusBadRequest)
+		log.Printf("Invalid URL: %v", params.URL)
+		return
+	}
+
+	log.Printf("shorten request for URL: %s", params.URL)
 
 	fmt.Fprintf(w, "create short url route\n")
 }

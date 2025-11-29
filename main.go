@@ -12,7 +12,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/shorten", api.CreateShortUrlHandler)
+	http.HandleFunc("/shorten", api.CreateShortURLHandler)
 	http.HandleFunc("/", handler)
 	http.ListenAndServe(":8080", nil)
 }
