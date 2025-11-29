@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 )
 
 // Shorten URL params
@@ -30,7 +31,8 @@ type Error struct {
 
 // URL short code map
 var (
-	URLMap = make(map[string]string)
+	URLMap   = make(map[string]string)
+	URLMapMu sync.RWMutex // protects URLMap from concurrent access
 )
 
 // URL validator
@@ -56,7 +58,10 @@ func generateShortCode() string {
 func getUniqueShortCode() string {
 	for {
 		code := generateShortCode()
-		if _, exists := URLMap[code]; !exists {
+		URLMapMu.RLock()
+		_, exists := URLMap[code]
+		URLMapMu.RUnlock()
+		if !exists {
 			return code
 		}
 		// If code exists, try again
@@ -93,7 +98,9 @@ func CreateShortURLHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Generate unique short code
 	shortCode := getUniqueShortCode()
+	URLMapMu.Lock()
 	URLMap[shortCode] = params.URL
+	URLMapMu.Unlock()
 
 	// Create response
 	response := ShortenURLResponse{
@@ -113,7 +120,9 @@ func RedirectToOriginalURLHandler(w http.ResponseWriter, r *http.Request) {
 	shortCode := strings.TrimPrefix(r.URL.Path, "/")
 
 	// Get original URL from map
+	URLMapMu.RLock()
 	originalURL, exists := URLMap[shortCode]
+	URLMapMu.RUnlock()
 	if !exists {
 		http.Error(w, "Short code not found", http.StatusNotFound)
 		log.Printf("Short code not found: %s", shortCode)
